@@ -1,4 +1,3 @@
-
 import React, {useEffect, useState, useCallback} from 'react';
 import {
   View,
@@ -13,19 +12,18 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-   // For pull-to-refresh
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Geolocation from '@react-native-community/geolocation';
 import moment from 'moment';
-import {useSettings} from '../../context/SettingsContext'; // Import useSettings
-import { ScrollView } from 'react-native-gesture-handler';
+import {useSettings} from '../../context/SettingsContext';
+import {ScrollView} from 'react-native-gesture-handler';
 
 const WEATHER_API_KEY = '66fb6657d29af5be71d4483435fab7aa';
 const NEWS_API_KEY = '09e7a1bbd7dc4bcdb65cfbf870a7acc4';
 
 const Home = () => {
-  const {temperatureUnit, newsCategories} = useSettings(); // Use settings from context
+  const {temperatureUnit, newsCategories} = useSettings();
 
   const [weather, setWeather] = useState(null);
   const [forecast, setForecast] = useState([]);
@@ -33,20 +31,15 @@ const Home = () => {
   const [loadingWeather, setLoadingWeather] = useState(true);
   const [loadingNews, setLoadingNews] = useState(true);
   const [locationError, setLocationError] = useState(false);
-  const [refreshing, setRefreshing] = useState(false); // For pull-to-refresh
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Function to convert Celsius to Fahrenheit
   const celsiusToFahrenheit = celsius => (celsius * 9) / 5 + 32;
 
-  // Function to determine weather-based news keywords
   const getWeatherSentimentKeywords = (tempCelsius, weatherCondition) => {
-    // Define temperature ranges (example thresholds, adjust as needed)
-    const COLD_TEMP_THRESHOLD = 10; // Below 10°C is cold
-    const HOT_TEMP_THRESHOLD = 25; // Above 25°C is hot
+    const COLD_TEMP_THRESHOLD = 10;
+    const HOT_TEMP_THRESHOLD = 25;
 
     let sentimentKeywords = [];
-
-    // Simple keyword mapping for weather conditions (can be expanded)
     const depressingConditions = [
       'rain',
       'drizzle',
@@ -60,7 +53,6 @@ const Home = () => {
     const conditionMain = weatherCondition.toLowerCase();
 
     if (tempCelsius < COLD_TEMP_THRESHOLD) {
-      // Cold: show depressing news headlines
       sentimentKeywords.push(
         'recession',
         'unemployment',
@@ -72,13 +64,11 @@ const Home = () => {
         sentimentKeywords.push('gloomy', 'hardship');
       }
     } else if (tempCelsius > HOT_TEMP_THRESHOLD) {
-      // Hot: show news articles related to fear
       sentimentKeywords.push('crime', 'danger', 'threat', 'panic', 'terror');
       if (fearConditions.includes(conditionMain)) {
         sentimentKeywords.push('disaster', 'emergency');
       }
     } else {
-      // Cool/Moderate: show news articles about winning and happiness
       sentimentKeywords.push(
         'success',
         'achievement',
@@ -88,21 +78,135 @@ const Home = () => {
         'progress',
       );
     }
-    return sentimentKeywords.join(' OR '); // For NewsAPI query
+    return sentimentKeywords.join(' OR ');
   };
 
-  const fetchData = useCallback(async () => {
-    setRefreshing(true);
-    await requestLocationPermission(); // This will trigger weather/forecast fetches
-    await fetchNews();
-    setRefreshing(false);
-  }, []); // Dependencies might include API keys if they were stateful, but here they are constants
+  const fetchNews = useCallback(async () => {
+    try {
+      setLoadingNews(true);
+      const selectedCategories = Object.keys(newsCategories).filter(
+        cat => newsCategories[cat],
+      );
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]); // Dependency on fetchData to re-run when it changes (which it won't here, but good practice)
+      let categoryQuery =
+        selectedCategories.length > 0
+          ? selectedCategories.join(' OR ')
+          : 'latest news';
 
-  const requestLocationPermission = async () => {
+      let weatherSentimentQuery = '';
+      // 'weather' state is read here, but it's not a dependency of useCallback.
+      // This is okay because fetchNews is called after weather is set by requestLocationPermission.
+      if (weather && weather.main && weather.weather && weather.weather[0]) {
+        weatherSentimentQuery = getWeatherSentimentKeywords(
+          weather.main.temp,
+          weather.weather[0].main,
+        );
+      }
+
+      let finalQuery = categoryQuery;
+      if (weatherSentimentQuery) {
+        finalQuery = finalQuery
+          ? `(${categoryQuery}) AND (${weatherSentimentQuery})`
+          : weatherSentimentQuery;
+      }
+
+      if (!finalQuery) {
+        finalQuery = 'top headlines';
+      }
+
+      const response = await fetch(
+        `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+          finalQuery,
+        )}&sortBy=relevancy&language=en&pageSize=20&apiKey=${NEWS_API_KEY}`,
+      );
+
+      const json = await response.json();
+      if (json.status === 'ok') {
+        setNews(json.articles);
+      } else {
+        throw new Error(json.message || 'Failed to fetch news');
+      }
+    } catch (error) {
+      console.error('News fetch error:', error);
+      Alert.alert(
+        'News Error',
+        'Could not fetch news feed. Check API key or query.',
+      );
+    } finally {
+      setLoadingNews(false);
+    }
+  }, [newsCategories]); // Removed 'weather' from dependencies
+
+  const fetchWeather = async (lat, lon) => {
+    try {
+      setLoadingWeather(true);
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`,
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setWeather(data);
+      } else {
+        throw new Error(data.message || 'Failed to fetch current weather');
+      }
+    } catch (error) {
+      console.error('Weather fetch error:', error);
+      Alert.alert('Weather Error', 'Could not fetch current weather data.');
+    }
+  };
+
+  const fetchFiveDayForecast = async (lat, lon) => {
+    try {
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`,
+      );
+      const data = await response.json();
+      if (response.ok) {
+        const dailyForecasts = {};
+        data.list.forEach(item => {
+          const date = moment.unix(item.dt).format('YYYY-MM-DD');
+          if (
+            !dailyForecasts[date] ||
+            (moment.unix(item.dt).hour() >= 12 &&
+              moment.unix(item.dt).hour() <= 15)
+          ) {
+            dailyForecasts[date] = item;
+          }
+        });
+        setForecast(Object.values(dailyForecasts).slice(1, 6));
+      } else {
+        throw new Error(data.message || 'Failed to fetch 5-day forecast');
+      }
+    } catch (error) {
+      console.error('Forecast fetch error:', error);
+      Alert.alert('Forecast Error', 'Could not fetch 5-day forecast data.');
+    } finally {
+      setLoadingWeather(false);
+    }
+  };
+
+  const getCurrentLocation = useCallback(() => {
+    Geolocation.getCurrentPosition(
+      position => {
+        const {latitude, longitude} = position.coords;
+        console.log('App received location:', {latitude, longitude});
+        fetchWeather(latitude, longitude);
+        fetchFiveDayForecast(latitude, longitude);
+      },
+      error => {
+        console.error('Location error:', error);
+        setLocationError(true);
+        Alert.alert(
+          'Location Error',
+          'Could not retrieve your current location. Please check your GPS settings.',
+        );
+        setLoadingWeather(false);
+      },
+      {enableHighAccuracy: true, timeout: 20000, maximumAge: 1000},
+    );
+  }, []);
+
+  const requestLocationPermission = useCallback(async () => {
     try {
       if (Platform.OS === 'android') {
         const granted = await PermissionsAndroid.request(
@@ -136,152 +240,18 @@ const Home = () => {
       Alert.alert('Error', 'Failed to request location permission.');
       setLoadingWeather(false);
     }
-  };
+  }, [getCurrentLocation]);
 
-  const getCurrentLocation = () => {
-    Geolocation.getCurrentPosition(
-      position => {
-        const {latitude, longitude} = position.coords;
-        console.log('App received location:', {latitude, longitude});
-        fetchWeather(latitude, longitude);
-        fetchFiveDayForecast(latitude, longitude);
-      },
-      error => {
-        console.error('Location error:', error);
-        setLocationError(true);
-        Alert.alert(
-          'Location Error',
-          'Could not retrieve your current location. Please check your GPS settings.',
-        );
-        setLoadingWeather(false);
-      },
-      {enableHighAccuracy: true, timeout: 20000, maximumAge: 1000},
-    );
-  };
+  const fetchData = useCallback(async () => {
+    setRefreshing(true);
+    await requestLocationPermission();
+    await fetchNews();
+    setRefreshing(false);
+  }, [requestLocationPermission, fetchNews]);
 
-  const fetchWeather = async (lat, lon) => {
-    try {
-      setLoadingWeather(true);
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`,
-      );
-      const data = await response.json();
-      if (response.ok) {
-        setWeather(data);
-      } else {
-        throw new Error(data.message || 'Failed to fetch current weather');
-      }
-    } catch (error) {
-      console.error('Weather fetch error:', error);
-      Alert.alert('Weather Error', 'Could not fetch current weather data.');
-    } finally {
-      // setLoadingWeather(false); // Done in fetchFiveDayForecast to ensure both are complete
-    }
-  };
-
-  const fetchFiveDayForecast = async (lat, lon) => {
-    try {
-      // setLoadingWeather(true); // Already true from fetchWeather
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`,
-      );
-      const data = await response.json();
-      if (response.ok) {
-        const dailyForecasts = {};
-        data.list.forEach(item => {
-          const date = moment.unix(item.dt).format('YYYY-MM-DD');
-          // Pick data points around midday for a more representative daily forecast
-          if (
-            !dailyForecasts[date] ||
-            (moment.unix(item.dt).hour() >= 12 &&
-              moment.unix(item.dt).hour() <= 15)
-          ) {
-            dailyForecasts[date] = item;
-          }
-        });
-        setForecast(Object.values(dailyForecasts).slice(1, 6)); // Get next 5 days, excluding current day's entry
-      } else {
-        throw new Error(data.message || 'Failed to fetch 5-day forecast');
-      }
-    } catch (error) {
-      console.error('Forecast fetch error:', error);
-      Alert.alert('Forecast Error', 'Could not fetch 5-day forecast data.');
-    } finally {
-      setLoadingWeather(false); // Set to false once both weather and forecast are attempted
-    }
-  };
-
-  const fetchNews = async () => {
-    try {
-      setLoadingNews(true);
-      const selectedCategories = Object.keys(newsCategories).filter(
-        cat => newsCategories[cat],
-      );
-
-      // Combine selected categories into a query string
-      let categoryQuery = '';
-      if (selectedCategories.length > 0) {
-        categoryQuery = selectedCategories.join(' OR ');
-      } else {
-        // If no categories selected, fetch general headlines or a default
-        categoryQuery = 'latest news'; // Default query if no categories selected
-      }
-
-      let weatherSentimentQuery = '';
-      if (weather && weather.main && weather.weather && weather.weather[0]) {
-        weatherSentimentQuery = getWeatherSentimentKeywords(
-          weather.main.temp,
-          weather.weather[0].main,
-        );
-      }
-
-      // Construct the final query for NewsAPI
-      let finalQuery = categoryQuery;
-      if (weatherSentimentQuery) {
-        // If both category and sentiment queries exist, combine them.
-        // NewsAPI q parameter supports OR and AND.
-        // Example: q=(business OR sports) AND (recession OR crisis)
-        if (finalQuery) {
-          // If categories were selected
-          finalQuery = `(${categoryQuery}) AND (${weatherSentimentQuery})`;
-        } else {
-          // If no categories were selected, just use sentiment
-          finalQuery = weatherSentimentQuery;
-        }
-      }
-
-      // Fallback if finalQuery is still empty (e.g., no categories, no weather data yet)
-      if (!finalQuery) {
-        finalQuery = 'top headlines'; // Default fallback
-      }
-
-      const response = await fetch(
-        `https://newsapi.org/v2/everything?q=${encodeURIComponent(
-          finalQuery,
-        )}&sortBy=relevancy&language=en&pageSize=20&apiKey=${NEWS_API_KEY}`,
-      );
-      // Note: Using /v2/everything for more flexible querying with 'q' parameter.
-      // Top-headlines has limited 'q' support and often prefers 'category' or 'sources'.
-      // 'sources=techcrunch' was in original code. If you want specific sources AND query,
-      // it gets more complex with NewsAPI and might require multiple requests or filtering.
-      // For sentiment-based filtering, 'everything' endpoint is more suitable.
-
-      const json = await response.json();
-      if (json.status === 'ok') {
-        setNews(json.articles);
-      } else {
-        throw new Error(json.message || 'Failed to fetch news');
-      }
-    } catch (error) {
-      console.error('News fetch error:', error);
-      Alert.alert(
-        'News Error',
-        'Could not fetch news feed. Check API key or query.',
-      );
-    } finally {
-      setLoadingNews(false);
-    }
-  };
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const renderWeatherContent = () => {
     if (loadingWeather) {
@@ -409,22 +379,16 @@ const Home = () => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={fetchData} />
         }>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerText}>Weather & News</Text>
           <Icon name="notifications-outline" size={24} color="#333" />
         </View>
 
-        {/* Weather Section */}
         {renderWeatherContent()}
 
-        {/* News Feed */}
         <Text style={styles.sectionTitle}>News Feed</Text>
         {renderNewsContent()}
       </ScrollView>
-
-      {/* Bottom Navigation (handled by App.js using Tab.Navigator) */}
-      {/* This bottomNav view is removed from here as Tab.Navigator manages it */}
     </SafeAreaView>
   );
 };
@@ -432,11 +396,11 @@ const Home = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F0F2F5', // Light grey background for app
-    paddingTop: Platform.OS === 'android' ? 30 : 0, // Adjust for Android status bar
+    backgroundColor: '#F0F2F5',
+    paddingTop: Platform.OS === 'android' ? 30 : 0,
   },
   scrollContent: {
-    flexGrow: 1, // Allows ScrollView content to expand
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
@@ -456,7 +420,7 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 150, // Give it some height even when loading
+    minHeight: 150,
     marginHorizontal: 20,
   },
   loadingText: {
@@ -582,7 +546,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingHorizontal: 20,
   },
-  // Removed bottomNav styles as it's now handled by react-navigation Tab.Navigator
 });
 
 export default Home;
