@@ -1,97 +1,74 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+WeatherReport & News React Native Application
 
-# Getting Started
+1. Introduction
+A React Native mobile app providing local weather and a personalized news feed.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+2. Key Features
+Weather: Current conditions and 5-day forecast.
 
-## Step 1: Start Metro
+News Feed: Scrollable(horizontal) news articles.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+Settings: Customize temperature units and news categories.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+Navigation: Easy screen switching.
 
-```sh
-# Using npm
-npm start
+Responsive UI: Adapts to mobile screens.
 
-# OR using Yarn
-yarn start
-```
+3. Application Screens
+Home: Displays weather and news.
 
-## Step 2: Build and run your app
+Settings: Manages app preferences.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+4. Technology Stack
+React Native
 
-### Android
+React Native CLI
 
-```sh
-# Using npm
-npm run android
+JavaScript (ES6+)
 
-# OR using Yarn
-yarn android
-```
+5. Setup and Installation
+5.1. Prerequisites
+Node.js (v14+)
 
-### iOS
+npm or Yarn
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+Mobile Device / Emulator
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+5.2. Installation Steps
+Create Project (if new):
 
-```sh
-bundle install
-```
+npx react-native-cli-@latest init WeatherReport
+cd WeatherReport
 
-Then, and every time you update your native dependencies, run:
+Replace App.js: Copy your app's code into App.js.
 
-```sh
-bundle exec pod install
-```
+Install Dependencies:
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+npm install
+# OR
+yarn install
 
-```sh
-# Using npm
-npm run ios
+6. How to Run the Application
+Start Metro Bundler:
 
-# OR using Yarn
-yarn ios
-```
+npx react-native start
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+Run on Device/Emulator (separate terminal):
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+Android: npx react-native run-android
 
-## Step 3: Modify your app
+iOS (macOS): npx react-native run-ios
 
-Now that you have successfully run the app, let's make changes!
+7. Usage
+Use bottom navigation to switch screens.
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+Adjust settings and tap "Save Changes."
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+8. Future Enhancements
+Live data integration (weather/news APIs).
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+Location services.
 
-## Congratulations! :tada:
+User authentication.
 
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+UI/UX improvements.
